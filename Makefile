@@ -1,42 +1,48 @@
-REPO      ?= quay.io/projectquay
-APP       ?= test-app
-BINDIR    ?= build
+APP        := app
+REGISTRY   ?= ghcr.io/bwoogmy
+VERSION    := $(shell git describe --tags --abbrev=0)
+BUILD_DIR  := bin
+ARCH       ?= amd64
+GOOS_LIST  := linux windows darwin
+IMAGE_TAG  := $(REGISTRY)/$(APP):$(VERSION)
+TARGETOS   ?= linux
+TARGETARCH ?= amd64
+CGO_ENABLED ?= 0
+BINARY     := $(APP)
 
-PLATFORMS = linux-amd64 linux-arm64 darwin-amd64 darwin-arm64 windows-amd64
+.PHONY: all deps build multi-build image push run clean
 
-.DEFAULT_GOAL := all
+all: deps multi-build image
 
-.PHONY: all clean $(PLATFORMS) image
+deps:
+	go mod tidy
 
-all: $(PLATFORMS)
+$(GOOS_LIST):
+	$(MAKE) build TARGETOS=$@ TARGETARCH=$(ARCH)
 
-$(BINDIR):
-	mkdir -p $(BINDIR)
+build: deps
+	GOOS=$(TARGETOS) GOARCH=$(TARGETARCH) CGO_ENABLED=$(CGO_ENABLED) \
+		go build -o $(BUILD_DIR)/$(BINARY)-$(TARGETOS)-$(TARGETARCH) .
 
-linux-amd64: $(BINDIR)
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o $(BINDIR)/$(APP)-linux-amd64 .
-
-linux-arm64: $(BINDIR)
-	GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o $(BINDIR)/$(APP)-linux-arm64 .
-
-darwin-amd64: $(BINDIR)
-	GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -o $(BINDIR)/$(APP)-darwin-amd64 .
-
-darwin-arm64: $(BINDIR)
-	GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -o $(BINDIR)/$(APP)-darwin-arm64 .
-
-windows-amd64: $(BINDIR)
-	GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -o $(BINDIR)/$(APP)-windows-amd64.exe .
+multi-build: deps
+	for GOOS in $(GOOS_LIST); do \
+		GOOS=$$GOOS GOARCH=$(ARCH) CGO_ENABLED=$(CGO_ENABLED) \
+			go build -o $(BUILD_DIR)/$(BINARY)-$$GOOS-$(ARCH) . ; \
+	done
 
 image:
-	docker buildx build \
-		--platform=linux/amd64 \
-		--build-arg TARGETOS=linux \
-		--build-arg TARGETARCH=amd64 \
-		--output type=docker \
-		--tag $(REPO)/$(APP):linux_amd64 \
-		.
+	docker build \
+		--build-arg TARGETOS=$(TARGETOS) \
+		--build-arg TARGETARCH=$(TARGETARCH) \
+		--build-arg BINARY=$(BINARY)-$(TARGETOS)-$(TARGETARCH) \
+		-t $(IMAGE_TAG) .
+
+push:
+	docker push $(IMAGE_TAG)
+
+run:
+	docker run --rm $(IMAGE_TAG)
 
 clean:
-	rm -rf $(BINDIR)
-	docker rmi $(REPO)/$(APP):linux_amd64 2>/dev/null || true
+	rm -rf $(BUILD_DIR)
+	docker rmi $(IMAGE_TAG) || true
