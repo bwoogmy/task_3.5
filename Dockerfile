@@ -14,6 +14,6 @@ FROM scratch
 
 ARG BINARY=app
 WORKDIR /
-COPY --from=builder /go/src/app/${BINARY} /${BINARY}
+COPY --from=builder /go/src/app/bin/${BINARY} /app
 COPY --from=alpine:latest /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 ENTRYPOINT ["/app"]

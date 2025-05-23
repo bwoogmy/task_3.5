@@ -1,6 +1,6 @@
 APP        := app
 REGISTRY   ?= ghcr.io/bwoogmy
-VERSION    := $(shell git describe --tags --abbrev=0)
+VERSION    := $(shell git describe --tags --abbrev=0 2>/dev/null || echo "latest")
 BUILD_DIR  := bin
 ARCH       ?= amd64
 GOOS_LIST  := linux windows darwin
