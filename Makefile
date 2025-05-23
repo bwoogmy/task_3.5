@@ -22,7 +22,7 @@ $(GOOS_LIST):
 
 build: deps
 	GOOS=$(TARGETOS) GOARCH=$(TARGETARCH) CGO_ENABLED=$(CGO_ENABLED) \
-		go build -o $(BUILD_DIR)/$(BINARY)-$(TARGETOS)-$(TARGETARCH) .
+		go build -o $(BUILD_DIR)/app .
 
 multi-build: deps
 	for GOOS in $(GOOS_LIST); do \
@@ -34,7 +34,6 @@ image:
 	docker build \
 		--build-arg TARGETOS=$(TARGETOS) \
 		--build-arg TARGETARCH=$(TARGETARCH) \
-		--build-arg BINARY=$(BINARY)-$(TARGETOS)-$(TARGETARCH) \
 		-t $(IMAGE_TAG) .
 
 push:

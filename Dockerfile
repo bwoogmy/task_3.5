@@ -3,17 +3,14 @@ FROM quay.io/projectquay/golang:1.24 AS builder
 WORKDIR /go/src/app
 COPY . .
 
-ARG TARGETOS
-ARG TARGETARCH
-ARG BINARY=app
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
 
-RUN make build TARGETOS=${TARGETOS} TARGETARCH=${TARGETARCH} BINARY=${BINARY}
-
+RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} CGO_ENABLED=0 go build -o bin/app .
 
 FROM scratch
 
-ARG BINARY=app
 WORKDIR /
-COPY --from=builder /go/src/app/bin/${BINARY} /app
+COPY --from=builder /go/src/app/bin/app /app
 COPY --from=alpine:latest /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 ENTRYPOINT ["/app"]
